@@ -114,7 +114,7 @@ O ciclo dura 17 segundos e se repete:
 Preencher antes da entrega, de acordo com o trabalho efetivamente realizado:
 
 - Integrante 1: João Vicente Batista Da Cunha — [modelagem/animação/recursos implementados].
-- Integrante 2: [Nelice Gomes Araujo] — [modelagem/animação/recursos implementados].
+- Integrante 2: Nelice Gomes Araujo — [modelagem/animação/recursos implementados].
 
 ## 9. Declaração de uso de inteligência artificial
 

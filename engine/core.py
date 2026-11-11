@@ -142,76 +142,6 @@ class Geometry:
         glBindVertexArray(0)
 
 
-def _push_triangle(out, a, b, c, normal, uv_a=(0, 0), uv_b=(1, 0), uv_c=(1, 1)):
-    for p, uv in ((a, uv_a), (b, uv_b), (c, uv_c)):
-        out.append([p[0], p[1], p[2], normal[0], normal[1], normal[2], uv[0], uv[1]])
-
-
-def box_geometry():
-    out = []
-    faces = [
-        # normal, four corners ordered for two triangles
-        ((1, 0, 0),  ((.5,-.5,-.5),(.5,.5,-.5),(.5,.5,.5),(.5,-.5,.5))),
-        ((-1, 0, 0), ((-.5,-.5,.5),(-.5,.5,.5),(-.5,.5,-.5),(-.5,-.5,-.5))),
-        ((0, 1, 0),  ((-.5,.5,-.5),(-.5,.5,.5),(.5,.5,.5),(.5,.5,-.5))),
-        ((0, -1, 0), ((-.5,-.5,.5),(-.5,-.5,-.5),(.5,-.5,-.5),(.5,-.5,.5))),
-        ((0, 0, 1),  ((.5,-.5,.5),(.5,.5,.5),(-.5,.5,.5),(-.5,-.5,.5))),
-        ((0, 0, -1), ((-.5,-.5,-.5),(-.5,.5,-.5),(.5,.5,-.5),(.5,-.5,-.5))),
-    ]
-    uv = ((0,0),(0,1),(1,1),(1,0))
-    for normal, q in faces:
-        _push_triangle(out, q[0], q[1], q[2], normal, uv[0], uv[1], uv[2])
-        _push_triangle(out, q[0], q[2], q[3], normal, uv[0], uv[2], uv[3])
-    return Geometry(out)
-
-
-def cylinder_z_geometry(segments=24):
-    """Cilindro com eixo Z, adequado às rodas cujo eixo atravessa a carroceria."""
-    out = []
-    for i in range(segments):
-        a0 = 2 * np.pi * i / segments
-        a1 = 2 * np.pi * (i + 1) / segments
-        p0 = (np.cos(a0)*.5, np.sin(a0)*.5, -.5)
-        p1 = (np.cos(a1)*.5, np.sin(a1)*.5, -.5)
-        p2 = (np.cos(a1)*.5, np.sin(a1)*.5, .5)
-        p3 = (np.cos(a0)*.5, np.sin(a0)*.5, .5)
-        n0 = (np.cos(a0), np.sin(a0), 0)
-        n1 = (np.cos(a1), np.sin(a1), 0)
-        # side quad
-        for p, n, uv in ((p0,n0,(i/segments,0)),(p1,n1,((i+1)/segments,0)),
-                         (p2,n1,((i+1)/segments,1)),(p0,n0,(i/segments,0)),
-                         (p2,n1,((i+1)/segments,1)),(p3,n0,(i/segments,1))):
-            out.append([*p,*n,*uv])
-        # caps
-        for z, normal in ((-.5,(0,0,-1)),(.5,(0,0,1))):
-            center = (0,0,z)
-            if z < 0:
-                tri = (center, p1, p0)
-            else:
-                tri = (center, p3, p2)
-            for p in tri:
-                out.append([*p,*normal,0.5,0.5])
-    return Geometry(out)
-
-
-def sphere_geometry(rings=12, sectors=18):
-    out = []
-    for i in range(rings):
-        lat0 = -np.pi/2 + np.pi*i/rings
-        lat1 = -np.pi/2 + np.pi*(i+1)/rings
-        for j in range(sectors):
-            lon0 = 2*np.pi*j/sectors
-            lon1 = 2*np.pi*(j+1)/sectors
-            pts = []
-            for lat, lon in ((lat0,lon0),(lat0,lon1),(lat1,lon1),(lat1,lon0)):
-                n = (np.cos(lat)*np.cos(lon), np.sin(lat), np.cos(lat)*np.sin(lon))
-                pts.append((n, (j/sectors, i/rings)))
-            for idx in (0,2,1,0,3,2):
-                n, uv = pts[idx]
-                out.append([n[0]*.5,n[1]*.5,n[2]*.5,*n,*uv])
-    return Geometry(out)
-
-
 class Texture:
     def __init__(self, path):
         from PIL import Image
@@ -369,10 +299,18 @@ class ShadowMap:
 class Renderer:
     def __init__(self, width, height, shader_dir, shadow_resolution=2048):
         self.width, self.height = width, height
-        self.scene_shader = ShaderProgram(os.path.join(shader_dir, "scene.vert"),
-                                          os.path.join(shader_dir, "scene.frag"))
-        self.depth_shader = ShaderProgram(os.path.join(shader_dir, "depth.vert"),
-                                         os.path.join(shader_dir, "depth.frag"))
+        # In a core OpenGL context, PyOpenGL's compileProgram() validates the
+        # linked program. That validation requires a VAO to be bound whenever
+        # the vertex shader declares vertex attributes.
+        self._shader_validation_vao = glGenVertexArrays(1)
+        glBindVertexArray(self._shader_validation_vao)
+        try:
+            self.scene_shader = ShaderProgram(os.path.join(shader_dir, "scene.vert"),
+                                              os.path.join(shader_dir, "scene.frag"))
+            self.depth_shader = ShaderProgram(os.path.join(shader_dir, "depth.vert"),
+                                             os.path.join(shader_dir, "depth.frag"))
+        finally:
+            glBindVertexArray(0)
         self.shadow_map = ShadowMap(shadow_resolution)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_CULL_FACE)

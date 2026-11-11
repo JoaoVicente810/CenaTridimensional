@@ -65,13 +65,51 @@ python main.py
 
 ## 5. Organização dos arquivos
 
-- `main.py`: criação da cena, modelagem dos dois temas, roteiro temporal da interação, controles e loop principal.
-- `engine.py`: componentes compactos do framework — `Geometry`, `ShaderProgram`, `Node`, `Group`, `Mesh`, `Scene`, `Camera`, `DirectionalLight`, `ShadowMap` e `Renderer`.
-- `shaders/scene.vert`: transformação dos vértices, normais, UVs e coordenadas no espaço da luz.
-- `shaders/scene.frag`: textura, iluminação difusa/especular e consulta do shadow map com PCF.
-- `shaders/depth.vert` e `shaders/depth.frag`: shaders da passagem de profundidade para shadow mapping.
-- `assets/asphalt.png`: textura de imagem usada no piso.
-- `requirements.txt`: dependências Python.
+O projeto foi dividido por responsabilidade para que alterações em uma parte não exijam modificar todo o código:
+
+```text
+main.py                 Entrada da aplicação e loop principal
+engine/                 Núcleo do motor de cena e renderização
+  __init__.py           Exporta os componentes públicos do engine
+  core.py               OpenGL, shaders, malhas, nós, câmera, luz e renderer
+geometry/               Modelos geométricos reutilizáveis
+  __init__.py           Exporta os construtores de geometria
+  primitives.py         Cubo, cilindro e esfera
+scene/                  Conteúdo e comportamento da cena
+  __init__.py           Exporta a montagem e a animação
+  builder.py            Cria o piso, carrinho, boneco e carga
+  animation.py          Controla o roteiro temporal e os movimentos
+assets/                 Recursos externos da aplicação
+  textures/             Imagens usadas pelos materiais
+    asphalt.png         Textura do piso
+shaders/                Programas executados na GPU
+  scene.vert            Vértices da renderização principal
+  scene.frag            Cores, textura, iluminação e sombras
+  depth.vert            Vértices da passagem do shadow mapping
+  depth.frag            Fragmentos da passagem de profundidade
+requirements.txt        Bibliotecas Python necessárias
+README.md               Documentação, instalação e conceitos do projeto
+```
+
+### Arquivos Python
+
+- `main.py`: inicia o Pygame, configura o contexto OpenGL, cria a cena, processa teclado/eventos e executa o loop de renderização.
+- `engine/core.py`: implementa o núcleo técnico: `Geometry` para VBO/VAO, `ShaderProgram` para shaders, `Node`/`Group`/`Mesh`/`Scene` para o grafo hierárquico, `Camera`, `DirectionalLight`, `ShadowMap` e `Renderer`.
+- `engine/__init__.py`: disponibiliza os componentes do engine para outros módulos por meio de imports simples, como `from engine import Camera`.
+- `geometry/primitives.py`: gera os vértices, normais e UVs das geometrias de cubo, cilindro e esfera.
+- `geometry/__init__.py`: reúne e exporta as geometrias primitivas.
+- `scene/builder.py`: monta todos os objetos da cena e define a hierarquia do carrinho, do boneco, das rodas, dos braços, das pernas e da carga.
+- `scene/animation.py`: calcula o caminho do carrinho, a caminhada do boneco, os movimentos dos braços e a transferência da carga ao longo do ciclo de 17 segundos.
+- `scene/__init__.py`: disponibiliza `make_scene` e `update_animation` para o ponto de entrada.
+
+### Shaders e recursos
+
+- `shaders/scene.vert`: transforma os vértices usando as matrizes de modelo, câmera e projeção e envia normais, UVs e posição no espaço da luz.
+- `shaders/scene.frag`: calcula a cor final usando material, textura, iluminação ambiente/difusa/especular e shadow mapping com PCF.
+- `shaders/depth.vert`: transforma a geometria pelo espaço da luz para registrar profundidade.
+- `shaders/depth.frag`: completa a passagem de profundidade usada pelo mapa de sombras.
+- `assets/textures/asphalt.png`: imagem carregada como textura do piso.
+- `requirements.txt`: lista `pygame`, `PyOpenGL`, `numpy` e `Pillow`, necessários para executar o projeto.
 
 ## 6. Conceitos técnicos para explicar na apresentação
 
@@ -89,7 +127,7 @@ O loop mede o tempo decorrido com `pygame.time.Clock().tick()`. A posição e â
 
 ### Textura
 
-A imagem `assets/asphalt.png` é carregada em uma textura OpenGL. As coordenadas UV dos vértices são interpoladas e usadas pelo fragment shader para consultar a imagem por `sampler2D`.
+A imagem `assets/textures/asphalt.png` é carregada em uma textura OpenGL. As coordenadas UV dos vértices são interpoladas e usadas pelo fragment shader para consultar a imagem por `sampler2D`.
 
 ### Iluminação e normais
 
